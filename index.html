@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<meta name="theme-color" content="#060810"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>CommandPilot Remote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:       #060810;
+  --surface:  #0c0f1a;
+  --border:   #161c2e;
+  --cyan:     #00e5ff;
+  --green:    #00d97e;
+  --amber:    #ffb700;
+  --red:      #ff4455;
+  --muted:    #2d3a52;
+  --text:     #d4daf0;
+  --subtext:  #6b7a9a;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;}
+
+/* ── HEADER ── */
+#header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px 12px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+#logo{font-family:'Orbitron',monospace;font-size:18px;font-weight:900;color:var(--cyan);letter-spacing:3px;}
+#pc-status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--subtext);}
+#status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background 0.4s;}
+#status-dot.online{background:var(--green);box-shadow:0 0 8px var(--green);}
+#status-dot.thinking{background:var(--amber);animation:pulse 0.8s infinite;}
+#status-dot.listening{background:var(--red);animation:pulse 0.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+/* ── RING CANVAS ── */
+#ring-wrap{display:flex;justify-content:center;padding:12px 0 4px;flex-shrink:0;}
+#ring{display:block;}
+
+/* ── STATUS LABEL ── */
+#status-label{text-align:center;font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;color:var(--cyan);margin-bottom:6px;height:16px;transition:color 0.3s;}
+
+/* ── CONNECT PANEL (shown when not connected to server) ── */
+#connect-panel{
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  padding:20px;margin:10px 16px;
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+}
+#connect-panel h2{font-family:'Orbitron',monospace;font-size:13px;color:var(--cyan);letter-spacing:2px;}
+#connect-panel p{font-size:12px;color:var(--subtext);text-align:center;line-height:1.6;}
+#token-input{
+  width:100%;padding:12px 14px;background:var(--bg);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:14px;outline:none;letter-spacing:2px;text-align:center;
+}
+#connect-btn{
+  width:100%;padding:14px;background:var(--cyan);border:none;border-radius:10px;
+  color:#060810;font-weight:700;font-size:15px;font-family:'Orbitron',monospace;letter-spacing:2px;cursor:pointer;
+}
+
+/* ── MESSAGES ── */
+#msgs{flex:1;overflow-y:auto;padding:10px 16px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch;}
+.msg{display:flex;flex-direction:column;max-width:84%;}
+.msg.user{align-self:flex-end;align-items:flex-end;}
+.msg.jarvis{align-self:flex-start;align-items:flex-start;}
+.msg-tag{font-size:9px;letter-spacing:2px;text-transform:uppercase;font-family:'Orbitron',monospace;margin-bottom:4px;}
+.msg.user .msg-tag{color:var(--cyan);}
+.msg.jarvis .msg-tag{color:var(--green);}
+.msg-tag.error{color:var(--red);}
+.msg-bubble{
+  padding:11px 15px;border-radius:16px;font-size:14px;line-height:1.6;word-break:break-word;
+}
+.msg.user .msg-bubble{background:#00e5ff14;border:1px solid #00e5ff25;border-radius:16px 16px 5px 16px;}
+.msg.jarvis .msg-bubble{background:var(--surface);border:1px solid var(--border);border-radius:5px 16px 16px 16px;}
+.msg.jarvis.error .msg-bubble{background:#1a060a;border-color:#ff445530;color:var(--red);}
+
+/* ── QUICK COMMANDS ── */
+#quick-wrap{padding:4px 16px 8px;flex-shrink:0;}
+#quick-label{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:7px;}
+#quick-scroll{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+#quick-scroll::-webkit-scrollbar{display:none;}
+.qbtn{
+  flex-shrink:0;padding:7px 13px;background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;font-size:12px;color:var(--subtext);cursor:pointer;white-space:nowrap;
+  transition:all 0.15s;
+}
+.qbtn:active{background:#00e5ff14;border-color:#00e5ff30;color:var(--cyan);}
+
+/* ── INPUT BAR ── */
+#input-bar{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;padding-bottom:max(12px, env(safe-area-inset-bottom));
+  border-top:1px solid var(--border);flex-shrink:0;background:var(--bg);
+}
+#cmd-input{
+  flex:1;padding:12px 16px;background:var(--surface);border:1px solid var(--border);
+  border-radius:24px;color:var(--text);font-size:15px;outline:none;
+  transition:border-color 0.2s;
+}
+#cmd-input:focus{border-color:#00e5ff40;}
+#send-btn,#mic-btn{
+  width:46px;height:46px;border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:all 0.15s;
+}
+#send-btn{background:var(--cyan);}
+#send-btn:active{transform:scale(0.92);}
+#mic-btn{background:var(--surface);border:1px solid var(--border);}
+#mic-btn.recording{background:#ff445520;border-color:var(--red);}
+#mic-btn:active{transform:scale(0.92);}
+
+/* ── OVERLAY when disconnected ── */
+#offline-bar{
+  display:none;text-align:center;padding:8px;background:#1a060a;
+  font-size:11px;color:var(--red);letter-spacing:1px;flex-shrink:0;
+}
+#offline-bar.show{display:block;}
+
+/* scrollbar for messages */
+#msgs::-webkit-scrollbar{width:3px;}
+#msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="logo">ECHO</div>
+  <div id="pc-status">
+    <div id="status-dot"></div>
+    <span id="pc-label">PC Offline</span>
+  </div>
+</div>
+
+<!-- OFFLINE BAR -->
+<div id="offline-bar" class="show">Not connected to relay server</div>
+
+<!-- JARVIS RING -->
+<div id="ring-wrap">
+  <canvas id="ring" width="180" height="180"></canvas>
+</div>
+<div id="status-label">STANDBY</div>
+
+<!-- CONNECT PANEL (hidden after connect) -->
+<div id="connect-panel">
+  <h2>CONNECT</h2>
+  <p>Enter your access token to link this phone to your CommandPilot PC.</p>
+  <input id="token-input" type="password" placeholder="••••••••" autocomplete="off" spellcheck="false"/>
+  <button id="connect-btn">CONNECT</button>
+</div>
+
+<!-- MESSAGES (hidden until connected) -->
+<div id="msgs" style="display:none"></div>
+
+<!-- QUICK COMMANDS (hidden until connected) -->
+<div id="quick-wrap" style="display:none">
+  <div id="quick-label">Quick Commands</div>
+  <div id="quick-scroll"></div>
+</div>
+
+<!-- INPUT BAR (hidden until connected) -->
+<div id="input-bar" style="display:none">
+  <button id="mic-btn" title="Voice input">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6b7a9a" stroke-width="2" stroke-linecap="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+  </button>
+  <input id="cmd-input" type="text" placeholder="Command your PC…" autocomplete="off" spellcheck="false"/>
+  <button id="send-btn" title="Send">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#060810" stroke-width="2.5" stroke-linecap="round">
+      <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+  </button>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG — replace with your actual Render URL after deploying
+// ─────────────────────────────────────────────────────────────────────────────
+const SERVER_URL = window.location.origin.replace(/^http/, "ws");
+
+const QUICK_CMDS = [
+  "What time is it?","Tell me a joke","Open YouTube","What's the weather?",
+  "Open Gmail","Take a screenshot","Volume up","Volume down",
+  "Open Notepad","Show desktop","Lock the PC","Search for news today",
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let ws         = null;
+let pcOnline   = false;
+let jarvisStatus = "DISCONNECTED";
+
+const STATUS_COLORS = {
+  STANDBY:      "#00e5ff",
+  LISTENING:    "#ff4455",
+  SPEAKING:     "#00d97e",
+  THINKING:     "#ffb700",
+  DISCONNECTED: "#2d3a52",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RING ANIMATION
+// ─────────────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById("ring");
+const ctx    = canvas.getContext("2d");
+const W = 180, H = 180, cx = 90, cy = 90;
+let angle = 0, pulse = 0, waveform = new Array(20).fill(0);
+
+function drawRing() {
+  angle += 1.8; pulse += 0.09;
+  const col = STATUS_COLORS[jarvisStatus] || "#2d3a52";
+  const p = 4 * Math.sin(pulse);
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#060810";
+  ctx.fillRect(0, 0, W, H);
+
+  // rotating outer dashes
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate((angle * Math.PI) / 180);
+  ctx.strokeStyle = "#0080FF44";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.arc(0, 0, 78, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore(); ctx.setLineDash([]);
+
+  // main pulsing ring
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(cx, cy, 64 + p, 0, Math.PI * 2); ctx.stroke();
+
+  // inner ring
+  ctx.strokeStyle = "#0080FF55";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, 52, 0, Math.PI * 2); ctx.stroke();
+
+  // core
+  ctx.fillStyle = "#010612";
+  ctx.beginPath(); ctx.arc(cx, cy, 42, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = col + "bb";
+  ctx.lineWidth = 1.5; ctx.stroke();
+
+  // tick marks
+  for (let i = 0; i < 12; i++) {
+    const a = ((i * 30 + angle) * Math.PI) / 180;
+    const r = 66 + 3 * Math.sin(pulse + i * 0.5);
+    ctx.strokeStyle = col + "77"; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx + 56 * Math.cos(a), cy + 56 * Math.sin(a));
+    ctx.lineTo(cx + r  * Math.cos(a), cy + r  * Math.sin(a));
+    ctx.stroke();
+  }
+
+  // waveform bars
+  const active = jarvisStatus === "LISTENING" || jarvisStatus === "SPEAKING";
+  waveform = waveform.map(w => active ? (Math.random() - 0.5) * 18 : w * 0.85);
+  const bW = 4, gap = 2, total = waveform.length * (bW + gap);
+  const x0 = cx - total / 2;
+  for (let i = 0; i < waveform.length; i++) {
+    const h = Math.max(Math.abs(waveform[i]), 1);
+    ctx.fillStyle = col + "88";
+    ctx.fillRect(x0 + i * (bW + gap), cy - h, bW, h * 2);
+  }
+
+  requestAnimationFrame(drawRing);
+}
+drawRing();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function setStatus(status) {
+  jarvisStatus = status;
+  const col = STATUS_COLORS[status] || "#2d3a52";
+  document.getElementById("status-label").textContent = status;
+  document.getElementById("status-label").style.color = col;
+  const dot = document.getElementById("status-dot");
+  dot.className = status === "STANDBY" || status === "SPEAKING" ? "online"
+                : status === "THINKING" ? "thinking"
+                : status === "LISTENING" ? "listening" : "";
+}
+
+function setPCOnline(online) {
+  pcOnline = online;
+  document.getElementById("status-dot").className = online ? "online" : "";
+  document.getElementById("pc-label").textContent  = online ? "PC Online" : "PC Offline";
+  if (!online) setStatus("DISCONNECTED");
+  else         setStatus("STANDBY");
+}
+
+function addMessage(role, text, intent) {
+  const msgs = document.getElementById("msgs");
+  const div  = document.createElement("div");
+  div.className = "msg " + (role === "user" ? "user" : "jarvis") + (intent === "error" ? " error" : "");
+  const tag = document.createElement("div");
+  tag.className = "msg-tag" + (intent === "error" ? " error" : "");
+  tag.textContent = role === "user" ? "YOU" : (intent ? intent.toUpperCase() : "JARVIS");
+  const bubble = document.createElement("div");
+  bubble.className = "msg-bubble";
+  bubble.textContent = text;
+  div.appendChild(tag); div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function buildQuickCmds() {
+  const scroll = document.getElementById("quick-scroll");
+  scroll.innerHTML = "";
+  QUICK_CMDS.forEach(cmd => {
+    const btn = document.createElement("button");
+    btn.className = "qbtn";
+    btn.textContent = cmd;
+    btn.onclick = () => sendCommand(cmd);
+    scroll.appendChild(btn);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEBSOCKET
+// ─────────────────────────────────────────────────────────────────────────────
+function connectToServer(token) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+
+  ws = new WebSocket(SERVER_URL);
+
+  ws.onopen = () => {
+    document.getElementById("offline-bar").classList.remove("show");
+    ws.send(JSON.stringify({ type: "auth", token, role: "phone" }));
+  };
+
+  ws.onmessage = (e) => {
+    let data;
+    try { data = JSON.parse(e.data); } catch { return; }
+
+    if (data.type === "auth_ok") {
+      // switch to main UI
+      document.getElementById("connect-panel").style.display = "none";
+      document.getElementById("msgs").style.display = "flex";
+      document.getElementById("quick-wrap").style.display = "block";
+      document.getElementById("input-bar").style.display = "flex";
+      localStorage.setItem("cp_token", token);
+      buildQuickCmds();
+      setPCOnline(data.pcOnline || false);
+      addMessage("jarvis", "Connected to CommandPilot relay. " + (data.pcOnline ? "Your PC is online." : "Waiting for PC agent to connect…"), "info");
+      return;
+    }
+
+    if (data.type === "pc_status") {
+      setPCOnline(data.online);
+      addMessage("jarvis", data.online ? "✓ Your PC is now online." : "⚠ PC agent disconnected.", "status");
+      return;
+    }
+
+    if (data.type === "status") {
+      if (data.status) setStatus(data.status);
+      if (data.text)   addMessage("jarvis", data.text, "voice");
+      return;
+    }
+
+    if (data.type === "response") {
+      if (data.status) setStatus(data.status);
+      if (data.text)   addMessage("jarvis", data.text, data.intent || "response");
+      return;
+    }
+
+    if (data.type === "error") {
+      addMessage("jarvis", data.text || "Unknown error.", "error");
+      return;
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById("offline-bar").classList.add("show");
+    setPCOnline(false);
+    setStatus("DISCONNECTED");
+    // auto-reconnect after 4s
+    setTimeout(() => {
+      const saved = localStorage.getItem("cp_token");
+      if (saved) connectToServer(saved);
+    }, 4000);
+  };
+
+  ws.onerror = () => {
+    document.getElementById("offline-bar").classList.add("show");
+  };
+}
+
+function sendCommand(text) {
+  text = text.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  addMessage("user", text);
+  ws.send(JSON.stringify({ type: "command", text }));
+  setStatus("THINKING");
+  document.getElementById("cmd-input").value = "";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VOICE INPUT (Web Speech API)
+// ─────────────────────────────────────────────────────────────────────────────
+let recognition = null;
+const micBtn = document.getElementById("mic-btn");
+
+if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = "en-ZA";
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById("cmd-input").value = transcript;
+    micBtn.classList.remove("recording");
+    sendCommand(transcript);
+  };
+  recognition.onend = () => micBtn.classList.remove("recording");
+  recognition.onerror = () => micBtn.classList.remove("recording");
+
+  micBtn.onclick = () => {
+    if (micBtn.classList.contains("recording")) {
+      recognition.stop();
+      micBtn.classList.remove("recording");
+    } else {
+      recognition.start();
+      micBtn.classList.add("recording");
+      setStatus("LISTENING");
+    }
+  };
+} else {
+  micBtn.style.display = "none";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENTS
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById("connect-btn").onclick = () => {
+  const token = document.getElementById("token-input").value.trim();
+  if (!token) return;
+  connectToServer(token);
+};
+
+document.getElementById("token-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("connect-btn").click();
+});
+
+document.getElementById("cmd-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") sendCommand(document.getElementById("cmd-input").value);
+});
+
+document.getElementById("send-btn").onclick = () =>
+  sendCommand(document.getElementById("cmd-input").value);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTO-RECONNECT if token already saved
+// ─────────────────────────────────────────────────────────────────────────────
+const savedToken = localStorage.getItem("cp_token");
+if (savedToken) {
+  document.getElementById("token-input").value = savedToken;
+  connectToServer(savedToken);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: commandpilot-remote
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: AUTH_TOKEN
+        generateValue: true   # Render generates a random secret for you
+    healthCheckPath: /health

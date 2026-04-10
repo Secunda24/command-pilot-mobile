@@ -33,7 +33,7 @@ let pcSocket    = null;   // the registered PC agent
 const phones    = new Set(); // authenticated phone clients
 
 // ── serve mobile web app ──────────────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(__dirname));
 
 // health check endpoint (Render pings this to keep the service alive)
 app.get("/health", (_req, res) => res.json({
